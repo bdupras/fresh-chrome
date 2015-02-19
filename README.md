@@ -35,3 +35,5 @@ Commands:
 
    destroy    Removes permanent user-data directory created by 'fresh-chrome init'.
 ```
+
+Derived from [stuartsierra/fresh-chrome.sh](https://gist.github.com/stuartsierra/6220797)
