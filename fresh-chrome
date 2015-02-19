@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+
+# fresh-chrome
+#
+# Use this script on OS X to launch new instances of Google Chrome
+# with their own empty cache, cookies, and user configuration.
+#
+# see fresh-chrome help for more info
+
+set -e
+N=$(basename $0)
+fresh_chrome="fresh-chrome"
+fresh_dir="${HOME}/.${fresh_chrome}"
+tmp_dir=${TMPDIR}
+fresh_tmp="${tmp_dir}${fresh_chrome}"
+chrome="open -na Google\ Chrome --args"
+
+init() {
+  if [[ -e "${fresh_dir}" ]]; then
+    echo "Error: already initialized to ${fresh_dir}.  Try using '${N} destroy' first." >&2
+    exit 2
+  else
+    mkdir -p "${fresh_dir}"
+    echo "$*" > "${fresh_dir}/.${fresh_chrome}-args"
+    eval ${chrome} --user-data-dir=${fresh_dir} $*
+  fi
+}
+
+destroy(){
+  echo "Removing ${fresh_dir}"
+  rm -Rf "${fresh_dir}"
+}
+
+start() {
+  timestamp=`date +%Y%m%d%H%M%S`
+
+  if [[ -e "${fresh_dir}" ]]; then
+    user_dir="${fresh_tmp}-${timestamp}-${RANDOM}"
+    cp -a "${fresh_dir}" "${user_dir}"
+    eval ${chrome} --user-data-dir=${user_dir} $(cat ${user_dir}/.fresh-chrome-args) $*
+  else
+    echo "Error: not yet initialized.  Try using '${N} init' first." >&2
+    exit 3
+  fi
+}
+
+clean() {
+  if test -n "$(find "${tmp_dir}" -maxdepth 1 -name "${fresh_chrome}*" -print -quit)"; then
+    rm -Rf ${fresh_tmp}*
+  fi
+}
+
+help() {
+  cat <<EOF
+Usage: ${N} <command> [<args>]
+
+Launch a new instance of Google Chrome with its own empty cache, cookies, and 
+user configuration.
+
+Commands:
+   init       Launch a new Google Chrome instance with a permanent user-data 
+              directory in ${fresh_dir}.  Any additional
+              arguments are passed to Chrome.
+
+              Example: 
+              ${N} init \\
+                            --use-fake-ui-for-media-stream \\
+                            --use-fake-device-for-media-stream \\
+                            --no-default-browser-check \\
+                            --no-first-run
+
+   up|start   Launch a new Google Chrome instance with a temporary user-data 
+              directory copied from the user-data directory set up by 
+              '${N} init'.  Additional arguments passed in '${N} init' 
+              are passed by default to '${N} up'.
+
+              Examples: 
+              ${N} up                ## starts Chrome with the same arguments used in '${N} init.'
+              ${N} up --disable-java ## adds the --disable-java argument to the argument list used in '${N} init.'
+
+   down|stop  Kills all Chrome instances started by '${N} up|start'
+              and removes all temporary user-data directories.
+
+   destroy    Removes permanent user-data directory created by '${N} init'.
+EOF
+}
+
+killall() {
+  for d in ${fresh_dir} ${fresh_tmp}*; do
+    pid=$(pgrep -f -- --user-data-dir=${d} | sort -n | head -1)
+    if [[ -n "$pid" ]]; then
+      kill $pid
+    fi
+  done
+}
+
+subcommand="$1"
+shift || true
+case "${subcommand}" in
+  init)
+    init $*
+    ;;
+  up|start)
+    start $*
+    ;;
+  down|killall|clean|stop)
+    killall
+    sleep 1
+    clean
+    ;;
+  destroy)
+    killall
+    sleep 1
+    clean
+    destroy
+    ;;
+  help)
+    help
+    ;;
+  *)
+    echo "Usage: ${N} {init|up|start|down|stop|destroy}" >&2
+    exit 1
+    ;;
+esac
+
+# The MIT License (MIT)
+#
+# Copyright (c) 2015 Brian Dupras
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+# The MIT License (MIT)
+
+# Based on fresh-chrome.sh at https://gist.github.com/stuartsierra/6220797
+# Copyright (c) 2013 Stuart Sierra
+#
+# Permission is hereby granted, free of charge, to any person
+# obtaining a copy of this software and associated documentation files
+# (the "Software"), to deal in the Software without restriction,
+# including without limitation the rights to use, copy, modify, merge,
+# publish, distribute, sublicense, and/or sell copies of the Software,
+# and to permit persons to whom the Software is furnished to do so,
+# subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+# NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+# BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+# ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+# CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
